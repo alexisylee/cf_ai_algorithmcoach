@@ -1,144 +1,154 @@
-# Algorithm Coach
+# cf_ai_algorithmcoach
 
-An AI-powered algorithm study coach built with **Cloudflare Agents** and **Workers AI (Llama 3.3)** that helps users prepare for technical coding interviews.
+An AI-powered algorithm study coach built with Cloudflare Agents and Workers AI (Llama 3.3 70B). Helps users prepare for technical coding interviews with personalized feedback, spaced repetition review scheduling, and adaptive study plans.
 
 ## Features
 
-- **AI Solution Analysis** - Submit code solutions and get detailed feedback on correctness, time/space complexity, edge cases, and code quality with a 0-10 score
-- **Smart Recommendations** - Get personalized problem recommendations based on weak areas, study streak, and target company interview patterns
-- **Concept Explanations** - Learn algorithm concepts at beginner, intermediate, or advanced depth with analogies and code examples
-- **Weakness Analysis** - Automatic tracking of performance by topic with AI-generated personalized study plans
-- **Study Dashboard** - Visual overview of streak, solved problems, weak topics, and target companies
-- **Persistent State** - All progress persists across sessions via Cloudflare Durable Objects (SQLite)
-- **Real-time Updates** - WebSocket-based state synchronization between server and client
-- **Dark/Light Theme** - Toggle between themes
+- **AI Solution Analysis** - Submit code and get feedback on correctness, time/space complexity, edge cases, and code quality (scored 0-10)
+- **Spaced Repetition** - SM-2 algorithm tracks review intervals per problem; dashboard shows overdue and upcoming reviews
+- **Smart Recommendations** - Personalized next-problem suggestions based on weak areas, review schedule, and target company patterns
+- **Concept Explanations** - Learn topics at beginner/intermediate/advanced depth with analogies and code examples
+- **Weakness Analysis** - AI-generated multi-week study plans based on per-topic performance data
+- **Study Dashboard** - Streak counter, solved problems, weak topics, target companies, and review schedule
+- **Persistent State** - Progress persists across sessions via Durable Objects (SQLite)
+- **Real-time Updates** - WebSocket state sync between server and client
 
 ## Architecture
 
 ```
-┌──────────────────────────────────────┐
-│           React Frontend             │
-│  (Chat UI / Submit Form / Dashboard) │
-│         useAgent() hook              │
-└──────────────┬───────────────────────┘
-               │ WebSocket
-               ▼
-┌──────────────────────────────────────┐
-│     AlgorithmCoach (Durable Object)  │
-│  ┌─────────────────────────────────┐ │
-│  │ @callable() methods:            │ │
-│  │  - chat()                       │ │
-│  │  - submitSolution()             │ │
-│  │  - getNextRecommendation()      │ │
-│  │  - explainConcept()             │ │
-│  │  - analyzeWeaknesses()          │ │
-│  │  - updateTargetCompanies()      │ │
-│  └─────────────────────────────────┘ │
-│  ┌─────────────────────────────────┐ │
-│  │ CoachState (SQLite-backed)      │ │
-│  │  - solvedProblems[]             │ │
-│  │  - weakTopics[]                 │ │
-│  │  - studyStreak                  │ │
-│  │  - targetCompanies[]            │ │
-│  │  - chatMessages[]               │ │
-│  └─────────────────────────────────┘ │
-└──────────────┬───────────────────────┘
-               │ Workers AI Binding
-               ▼
-┌──────────────────────────────────────┐
-│   Cloudflare Workers AI              │
-│   @cf/meta/llama-3.3-70b-instruct   │
-└──────────────────────────────────────┘
+┌─────────────────────────────────────────────┐
+│              React Frontend                 │
+│                                             │
+│  ┌─────────┐ ┌──────────┐ ┌──────────────┐  │
+│  │  Chat   │ │  Submit  │ │  Dashboard   │  │
+│  │  View   │ │  View    │ │  View        │  │
+│  └─────────┘ └──────────┘ └──────────────┘  │
+│         useAgent("coach") hook              │
+└──────────────────┬──────────────────────────┘
+                   │ WebSocket (real-time state sync)
+                   ▼
+┌─────────────────────────────────────────────┐
+│        Coach (Durable Object Agent)         │
+│                                             │
+│  @callable() methods:                       │
+│    chat()              - general coaching   │
+│    submitSolution()    - analyze code + SM-2│
+│    getNextRecommendation() - spaced rep     │
+│    explainConcept()    - teach topics       │
+│    analyzeWeaknesses() - study plans        │
+│    updateTargetCompanies()                  │
+│                                             │
+│  CoachState (persisted to SQLite):          │
+│    solvedProblems[] (with SM-2 fields)      │
+│    weakTopics[], studyStreak                │
+│    targetCompanies[], chatMessages[]        │
+└──────────────────┬──────────────────────────┘
+                   │ Workers AI binding
+                   ▼
+┌─────────────────────────────────────────────┐
+│          Cloudflare Workers AI              │
+│    @cf/meta/llama-3.3-70b-instruct-fp8-fast │
+└─────────────────────────────────────────────┘
 ```
 
 ## Tech Stack
 
-- **Runtime**: Cloudflare Workers
-- **Agent Framework**: Cloudflare Agents (Durable Objects)
-- **LLM**: Llama 3.3 70B via Workers AI
-- **Frontend**: React 19 + TypeScript + Tailwind CSS v4
-- **Build**: Vite + `@cloudflare/vite-plugin`
-- **State**: SQLite (via Durable Objects)
-- **Communication**: WebSocket (via `useAgent` hook)
+| Layer | Technology |
+|-------|-----------|
+| Runtime | Cloudflare Workers |
+| Agent Framework | Cloudflare Agents (Durable Objects) |
+| LLM | Llama 3.3 70B via Workers AI |
+| Frontend | React 19, TypeScript, Tailwind CSS v4 |
+| Build | Vite + @cloudflare/vite-plugin |
+| State | SQLite (Durable Objects storage) |
+| Communication | WebSocket via `useAgent` hook |
 
-## Local Setup
+## Getting Started
 
 ### Prerequisites
 
 - Node.js 18+
 - npm
-- Cloudflare account (for Workers AI access)
+- A Cloudflare account (free tier works — needed for Workers AI)
 
-### Installation
+### 1. Clone and install
 
 ```bash
-git clone <repository-url>
-cd algorithmcoach
+git clone https://github.com/<your-username>/cf_ai_algorithmcoach.git
+cd cf_ai_algorithmcoach
 npm install
 ```
 
-### Development
+### 2. Authenticate with Cloudflare
+
+Workers AI runs remotely even in local dev, so you need to be logged in:
+
+```bash
+npx wrangler login
+```
+
+This opens a browser window to authorize your Cloudflare account.
+
+### 3. Run locally
 
 ```bash
 npm run dev
 ```
 
-Open [http://localhost:5173](http://localhost:5173) in your browser.
+Open the URL shown in terminal (usually `http://localhost:5173`).
 
-> **Note**: Workers AI requires authentication. When running locally, the Cloudflare Vite plugin handles this via your Cloudflare login session. Run `npx wrangler login` if not already authenticated.
+### 4. Try it out
 
-## Deployment
+1. **Chat tab** - Type a message like "What's the best way to learn dynamic programming?" and press Enter
+2. **Submit tab** - Paste a coding solution (e.g., a Two Sum solution), fill in the problem name, language, difficulty, and topic, then click Submit for Analysis
+3. **Submit tab (bottom)** - Use "Explain a Concept" to get a breakdown of any algorithm topic
+4. **Dashboard tab** - View your stats, set target companies, see review schedule, and click "Get Recommendation" or "Analyze Weaknesses"
+
+### 5. Deploy (optional)
 
 ```bash
 npm run deploy
 ```
 
-This builds the frontend and deploys the Worker + Durable Object to Cloudflare.
-
-## Usage
-
-### Chat
-Talk to the AI coach about algorithms, data structures, and interview strategies. The coach maintains conversation context and personalizes responses based on your study history.
-
-### Submit a Solution
-1. Navigate to the **Submit** tab
-2. Enter the problem name/ID, select language and difficulty, enter the topic
-3. Paste your code solution
-4. Click **Submit for Analysis**
-5. View the AI's detailed feedback in the Chat tab
-
-### Get Recommendations
-Click **Get Recommendation** from the dashboard or welcome screen. The coach analyzes your weak areas, recent problems, and target companies to suggest the best next problem.
-
-### Explain a Concept
-Use the **Explain a Concept** form on the Submit tab. Choose the topic (e.g., "Dynamic Programming") and depth level (beginner/intermediate/advanced).
-
-### Study Dashboard
-View your study streak, total problems solved, weak topics, target companies, and recent problem history. Set target companies to get tailored recommendations.
+This builds the frontend and deploys the Worker + Durable Object to your Cloudflare account. The deployed URL will be printed in the terminal.
 
 ## Project Structure
 
 ```
 src/
-  server.ts      # AlgorithmCoach agent (Durable Object) with @callable methods
-  app.tsx         # Main React application (Chat, Submit, Dashboard views)
-  client.tsx      # React entry point
-  components/     # Reusable UI components (Button, Card, Avatar, etc.)
-  providers/      # React context providers
-  styles.css      # Tailwind CSS + custom styles
-wrangler.jsonc     # Cloudflare Worker configuration
-env.d.ts           # TypeScript type definitions for env bindings
-PROMPTS.md         # Documentation of all AI prompts
+  server.ts       # Coach agent class — @callable methods, SM-2 logic, LLM calls
+  app.tsx          # React app — Chat, Submit, and Dashboard views
+  client.tsx       # React entry point
+  components/      # UI components (Button, Card, Avatar, Textarea, etc.)
+  providers/       # React context providers
+  styles.css       # Tailwind CSS + custom theme
+wrangler.jsonc     # Cloudflare Worker config (DO bindings, AI binding)
+env.d.ts           # TypeScript env type definitions
+PROMPTS.md         # All AI prompts documented
 ```
+
+## Key Implementation Details
+
+### Spaced Repetition (SM-2)
+
+Each solved problem tracks `easinessFactor`, `interval`, `reviewCount`, and `nextReview`. When re-submitting the same problem ID, the SM-2 algorithm updates these fields based on the new score. The recommendation engine prioritizes overdue reviews.
+
+### State Management
+
+`Coach` extends `Agent<Env, CoachState>`. Calling `this.setState()` persists to SQLite and pushes the update to connected clients over WebSocket. The frontend receives updates via the `onStateUpdate` callback in `useAgent()`.
+
+### LLM Integration
+
+All LLM calls go through `this.env.AI.run()` using the Workers AI binding. The model (`@cf/meta/llama-3.3-70b-instruct-fp8-fast`) runs on Cloudflare's edge infrastructure — no API keys needed.
 
 ## Assignment Requirements
 
 | Requirement | Implementation |
 |---|---|
-| LLM Integration | Llama 3.3 70B via Workers AI (`@cf/meta/llama-3.3-70b-instruct-fp8-fast`) |
-| Workflow/Coordination | Cloudflare Agents framework (Durable Objects) with `@callable()` methods |
-| Chat UI | React chat interface with WebSocket real-time updates via `useAgent()` |
-| State Management | Persistent `CoachState` stored in SQLite via Agent framework |
+| LLM Integration | Llama 3.3 70B via Workers AI |
+| Workflow/Coordination | Cloudflare Agents (Durable Objects) with `@callable()` methods |
+| Chat UI | React chat interface with real-time WebSocket updates via `useAgent()` |
+| State Management | Persistent `CoachState` in SQLite, synced to frontend in real-time |
 
 ## License
 

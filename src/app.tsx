@@ -641,42 +641,81 @@ export default function App() {
               </Card>
             </div>
 
-            {/* Due for Review */}
-            {(() => {
+            {/* Review Schedule */}
+            {stats.solvedProblems.length > 0 && (() => {
               const now = Date.now();
-              const dueProblems = stats.solvedProblems
-                .filter((p) => p.nextReview <= now)
+              const overdue = stats.solvedProblems
+                .filter((p) => p.nextReview && p.nextReview <= now)
                 .sort((a, b) => a.nextReview - b.nextReview);
-              if (dueProblems.length === 0) return null;
+              const upcoming = stats.solvedProblems
+                .filter((p) => p.nextReview && p.nextReview > now)
+                .sort((a, b) => a.nextReview - b.nextReview);
+              // Problems from before SM-2 was added (no nextReview) count as due
+              const legacy = stats.solvedProblems.filter((p) => !p.nextReview);
+              const allDue = [...legacy, ...overdue];
+
               return (
-                <Card className="p-4 bg-neutral-100 dark:bg-neutral-900 border-orange-300 dark:border-orange-800">
+                <Card className={`p-4 bg-neutral-100 dark:bg-neutral-900 ${allDue.length > 0 ? "border-orange-300 dark:border-orange-800" : ""}`}>
                   <h4 className="font-medium mb-2 text-sm flex items-center gap-2">
                     <ClockCountdownIcon size={16} className="text-orange-500" />
-                    Due for Review ({dueProblems.length})
+                    Review Schedule
                   </h4>
-                  <div className="space-y-2">
-                    {dueProblems.slice(0, 5).map((p) => (
-                      <div
-                        key={`due-${p.id}-${p.timestamp}`}
-                        className="flex items-center justify-between text-sm p-2 rounded-md bg-orange-50 dark:bg-orange-900/20"
-                      >
-                        <div className="flex items-center gap-2">
-                          <span className="font-medium">{p.id}</span>
-                          <span className="text-xs text-neutral-500">
-                            {p.topic}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs text-orange-600 dark:text-orange-400">
-                            {Math.round((now - p.nextReview) / 86_400_000)}d overdue
-                          </span>
-                          <span className="text-xs text-neutral-400">
-                            {p.reviewCount} review{p.reviewCount !== 1 ? "s" : ""}
-                          </span>
-                        </div>
+
+                  {allDue.length > 0 && (
+                    <>
+                      <p className="text-xs text-orange-600 dark:text-orange-400 mb-2">
+                        {allDue.length} problem{allDue.length !== 1 ? "s" : ""} due for review
+                      </p>
+                      <div className="space-y-2 mb-3">
+                        {allDue.slice(0, 5).map((p) => (
+                          <div
+                            key={`due-${p.id}-${p.timestamp}`}
+                            className="flex items-center justify-between text-sm p-2 rounded-md bg-orange-50 dark:bg-orange-900/20"
+                          >
+                            <div className="flex items-center gap-2">
+                              <span className="font-medium">{p.id}</span>
+                              <span className="text-xs text-neutral-500">{p.topic}</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs text-orange-600 dark:text-orange-400">
+                                {p.nextReview
+                                  ? `${Math.round((now - p.nextReview) / 86_400_000)}d overdue`
+                                  : "due now"}
+                              </span>
+                              <span className="text-xs text-neutral-400">
+                                {p.reviewCount ?? 0} review{(p.reviewCount ?? 0) !== 1 ? "s" : ""}
+                              </span>
+                            </div>
+                          </div>
+                        ))}
                       </div>
-                    ))}
-                  </div>
+                    </>
+                  )}
+
+                  {allDue.length === 0 && (
+                    <p className="text-xs text-green-600 dark:text-green-400 mb-2">
+                      All caught up! No reviews due.
+                    </p>
+                  )}
+
+                  {upcoming.length > 0 && (
+                    <>
+                      <p className="text-xs text-neutral-500 mb-2">Upcoming</p>
+                      <div className="space-y-1">
+                        {upcoming.slice(0, 3).map((p) => (
+                          <div
+                            key={`upcoming-${p.id}-${p.timestamp}`}
+                            className="flex items-center justify-between text-xs p-1.5 rounded-md bg-neutral-200 dark:bg-neutral-800"
+                          >
+                            <span>{p.id} <span className="text-neutral-500">({p.topic})</span></span>
+                            <span className="text-neutral-400">
+                              in {Math.ceil((p.nextReview - now) / 86_400_000)}d
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </>
+                  )}
                 </Card>
               );
             })()}
