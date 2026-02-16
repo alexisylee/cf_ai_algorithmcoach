@@ -13,15 +13,15 @@
   "durable_objects": {
     "bindings": [
       {
-        "name": "AlgorithmCoach",
-        "class_name": "AlgorithmCoach"
+        "name": "Coach",
+        "class_name": "Coach"
       }
     ]
   },
   "migrations": [
     {
       "tag": "v1",
-      "new_sqlite_classes": ["AlgorithmCoach"]
+      "new_sqlite_classes": ["Coach"]
     }
   ]
 }

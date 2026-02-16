@@ -23,7 +23,7 @@ export type CoachState = {
   }>;
 };
 
-export class AlgorithmCoach extends Agent<Env, CoachState> {
+export class Coach extends Agent<Env, CoachState> {
   initialState: CoachState = {
     userId: null,
     solvedProblems: [],

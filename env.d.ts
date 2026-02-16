@@ -2,10 +2,10 @@
 declare namespace Cloudflare {
 	interface GlobalProps {
 		mainModule: typeof import("./src/server");
-		durableNamespaces: "AlgorithmCoach";
+		durableNamespaces: "Coach";
 	}
 	interface Env {
-		AlgorithmCoach: DurableObjectNamespace<import("./src/server").AlgorithmCoach>;
+		Coach: DurableObjectNamespace<import("./src/server").Coach>;
 		AI: Ai;
 	}
 }

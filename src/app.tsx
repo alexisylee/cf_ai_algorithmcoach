@@ -62,7 +62,7 @@ export default function App() {
   const [coachState, setCoachState] = useState<CoachState | null>(null);
 
   const agent = useAgent<CoachState>({
-    agent: "algorithmcoach",
+    agent: "coach",
     onStateUpdate: (state: CoachState) => {
       setCoachState(state);
       if (state?.chatMessages) {
