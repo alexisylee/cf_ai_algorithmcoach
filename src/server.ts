@@ -11,6 +11,10 @@ export type CoachState = {
     timeSpent: number;
     needsReview: boolean;
     complexityAnalysis?: string;
+    nextReview: number;    // timestamp
+    reviewCount: number;
+    easinessFactor: number; // SM-2 algorithm
+    interval: number;       // days until next review
   }>;
   weakTopics: string[];
   studyStreak: number;
@@ -122,6 +126,54 @@ export class Coach extends Agent<Env, CoachState> {
 
     return (response as { response?: string }).response || "No response generated.";
   }
+  
+  /**
+   * SM-2 Spaced Repetition Algorithm
+   *
+   * Core idea: the better you perform, the longer until next review.
+   * Easiness factor (EF) adjusts how fast intervals grow.
+   *   EF >= 2.5 = easy material (intervals grow fast)
+   *   EF ~= 1.3 = hard material (intervals stay short)
+   *
+   * @param easinessFactor - current EF, starts at 2.5, minimum 1.3
+   * @param interval       - current interval in days (0 for first review)
+   * @param score          - performance score 0-10 (mapped to SM-2's 0-5 scale)
+   */
+  private calculateNextReview(
+    easinessFactor: number,
+    interval: number,
+    score: number
+  ): { easinessFactor: number; interval: number } {
+    // SM-2 uses 0-5 scale, our app uses 0-10, so divide by 2
+    const q = Math.min(score / 2, 5);
+
+    // New EF: EF' = EF + (0.1 - (5-q) * (0.08 + (5-q) * 0.02))
+    // This decreases EF for low scores, increases for high scores
+    const newEF = Math.max(
+      1.3, // floor — never drop below 1.3
+      easinessFactor + (0.1 - (5 - q) * (0.08 + (5 - q) * 0.02))
+    );
+
+    // If score < 3 (equivalent to < 6/10), reset interval — user didn't retain it
+    if (q < 3) {
+      return { easinessFactor: newEF, interval: 1 };
+    }
+
+    // Interval progression:
+    //   1st successful review: 1 day
+    //   2nd successful review: 6 days
+    //   nth successful review: previous interval * EF
+    let newInterval: number;
+    if (interval === 0) {
+      newInterval = 1;
+    } else if (interval === 1) {
+      newInterval = 6;
+    } else {
+      newInterval = Math.round(interval * newEF);
+    }
+
+    return { easinessFactor: newEF, interval: newInterval };
+  }
 
   @callable({ description: "Submit a coding solution for AI analysis" })
   async submitSolution(
@@ -180,20 +232,43 @@ ${code}
       const scoreMatch = feedback.match(/Score:\s*(\d+)\s*\/\s*10/i);
       const score = scoreMatch ? parseInt(scoreMatch[1]) : 5;
       const needsReview = score < 7;
+      // Check if this problem was previously solved (re-review)
+      const existingIndex = this.state.solvedProblems.findIndex(
+        (p) => p.id === problemId
+      );
+      const existing = existingIndex !== -1
+        ? this.state.solvedProblems[existingIndex]
+        : null;
 
-      // Update solved problems
-      const solvedProblems = [
-        ...this.state.solvedProblems,
-        {
-          id: problemId,
-          difficulty: difficulty as "easy" | "medium" | "hard",
-          topic,
-          timestamp: Date.now(),
-          timeSpent: 0,
-          needsReview,
-          complexityAnalysis: feedback.substring(0, 500),
-        },
-      ];
+      const { easinessFactor: newEF, interval: newInterval } =
+        this.calculateNextReview(
+          existing?.easinessFactor ?? 2.5,
+          existing?.interval ?? 0,
+          score
+        );
+
+      const updatedProblem = {
+        id: problemId,
+        difficulty: difficulty as "easy" | "medium" | "hard",
+        topic,
+        timestamp: Date.now(),
+        timeSpent: 0,
+        needsReview,
+        complexityAnalysis: feedback.substring(0, 500),
+        easinessFactor: newEF,
+        interval: newInterval,
+        reviewCount: (existing?.reviewCount ?? 0) + 1,
+        nextReview: Date.now() + newInterval * 86_400_000,
+      };
+
+      // Replace existing entry or append new one
+      let solvedProblems: typeof this.state.solvedProblems;
+      if (existingIndex !== -1) {
+        solvedProblems = [...this.state.solvedProblems];
+        solvedProblems[existingIndex] = updatedProblem;
+      } else {
+        solvedProblems = [...this.state.solvedProblems, updatedProblem];
+      }
 
       // Update weak topics if score is low
       let weakTopics = [...this.state.weakTopics];
@@ -228,16 +303,32 @@ ${code}
   async getNextRecommendation(): Promise<string> {
     this.addChatMessage("user", "Requesting next problem recommendation");
 
+    const now = Date.now();
+    const dueForReview = this.state.solvedProblems
+      .filter((p) => p.nextReview <= now)
+      .sort((a, b) => a.nextReview - b.nextReview);
+
     const recentProblems = this.state.solvedProblems.slice(-5);
     const recentSummary =
       recentProblems.length > 0
         ? recentProblems
             .map(
               (p) =>
-                `- ${p.id} (${p.difficulty}, ${p.topic}, review needed: ${p.needsReview})`
+                `- ${p.id} (${p.difficulty}, ${p.topic}, review needed: ${p.needsReview}, reviews: ${p.reviewCount})`
             )
             .join("\n")
         : "No problems solved yet";
+
+    const dueSummary =
+      dueForReview.length > 0
+        ? dueForReview
+            .slice(0, 5)
+            .map(
+              (p) =>
+                `- ${p.id} (${p.topic}, ${p.difficulty}, overdue by ${Math.round((now - p.nextReview) / 86_400_000)} days)`
+            )
+            .join("\n")
+        : "None";
 
     const systemPrompt = `You are an algorithm study coach specializing in technical interview preparation. Based on the student's study history, recommend the next problem they should work on.
 
@@ -256,10 +347,10 @@ The algorithm/data structure topic.
 
 ### Why This Problem
 Explain why this is the best next step based on:
+- Problems due for spaced repetition review (PRIORITIZE THESE if any are overdue)
 - Their weak areas that need practice
 - Progressive difficulty building
 - Interview patterns for their target companies
-- Spaced repetition for previously struggled topics
 
 ### Key Concepts to Review
 List 2-3 concepts they should review before attempting.
@@ -273,7 +364,9 @@ Suggest 2-3 similar problems for additional practice.`;
 - Total problems solved: ${this.state.solvedProblems.length}
 - Target companies: ${this.state.targetCompanies.length > 0 ? this.state.targetCompanies.join(", ") : "General preparation"}
 - Recent problems:
-${recentSummary}`;
+${recentSummary}
+- Problems due for spaced repetition review:
+${dueSummary}`;
 
     try {
       const recommendation = await this.callLlama(systemPrompt, userMessage);

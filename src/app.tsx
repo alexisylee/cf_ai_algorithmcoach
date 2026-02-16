@@ -20,6 +20,7 @@ import {
   FireIcon,
   TrophyIcon,
   SpinnerGapIcon,
+  ClockCountdownIcon,
 } from "@phosphor-icons/react";
 
 import type { CoachState } from "./server";
@@ -640,6 +641,46 @@ export default function App() {
               </Card>
             </div>
 
+            {/* Due for Review */}
+            {(() => {
+              const now = Date.now();
+              const dueProblems = stats.solvedProblems
+                .filter((p) => p.nextReview <= now)
+                .sort((a, b) => a.nextReview - b.nextReview);
+              if (dueProblems.length === 0) return null;
+              return (
+                <Card className="p-4 bg-neutral-100 dark:bg-neutral-900 border-orange-300 dark:border-orange-800">
+                  <h4 className="font-medium mb-2 text-sm flex items-center gap-2">
+                    <ClockCountdownIcon size={16} className="text-orange-500" />
+                    Due for Review ({dueProblems.length})
+                  </h4>
+                  <div className="space-y-2">
+                    {dueProblems.slice(0, 5).map((p) => (
+                      <div
+                        key={`due-${p.id}-${p.timestamp}`}
+                        className="flex items-center justify-between text-sm p-2 rounded-md bg-orange-50 dark:bg-orange-900/20"
+                      >
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium">{p.id}</span>
+                          <span className="text-xs text-neutral-500">
+                            {p.topic}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-orange-600 dark:text-orange-400">
+                            {Math.round((now - p.nextReview) / 86_400_000)}d overdue
+                          </span>
+                          <span className="text-xs text-neutral-400">
+                            {p.reviewCount} review{p.reviewCount !== 1 ? "s" : ""}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </Card>
+              );
+            })()}
+
             {/* Weak Topics */}
             {stats.weakTopics.length > 0 && (
               <Card className="p-4 bg-neutral-100 dark:bg-neutral-900">
@@ -736,6 +777,17 @@ export default function App() {
                           </span>
                           <span className="text-xs text-neutral-500">
                             {p.topic}
+                          </span>
+                          <span
+                            className={`text-xs ${
+                              p.nextReview <= Date.now()
+                                ? "text-orange-500"
+                                : "text-neutral-400"
+                            }`}
+                          >
+                            {p.nextReview <= Date.now()
+                              ? "due"
+                              : `${Math.ceil((p.nextReview - Date.now()) / 86_400_000)}d`}
                           </span>
                         </div>
                       </div>
