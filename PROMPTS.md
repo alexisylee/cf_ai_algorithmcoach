@@ -27,3 +27,4 @@ AI prompts used during development of cf_ai_algorithmcoach.
 ### Prompt 5 — Review Schedule Card Design Change
 
 > Fix frontend for review feature by having the review card always be on dashboard, show overdue and upcoming problems.
+
