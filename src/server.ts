@@ -11,10 +11,10 @@ export type CoachState = {
     timeSpent: number;
     needsReview: boolean;
     complexityAnalysis?: string;
-    nextReview: number;    // timestamp
+    nextReview: number; // timestamp
     reviewCount: number;
     easinessFactor: number; // SM-2 algorithm
-    interval: number;       // days until next review
+    interval: number; // days until next review
   }>;
   weakTopics: string[];
   studyStreak: number;
@@ -35,7 +35,7 @@ export class Coach extends Agent<Env, CoachState> {
     studyStreak: 0,
     lastStudyDate: null,
     targetCompanies: [],
-    chatMessages: [],
+    chatMessages: []
   };
 
   onStart(): void {
@@ -83,14 +83,14 @@ export class Coach extends Agent<Env, CoachState> {
     this.setState({
       ...this.state,
       lastStudyDate: today,
-      studyStreak: streak,
+      studyStreak: streak
     });
   }
 
   private addChatMessage(role: "user" | "assistant", content: string): void {
     const messages = [
       ...this.state.chatMessages,
-      { role, content, timestamp: Date.now() },
+      { role, content, timestamp: Date.now() }
     ];
     // Keep last 50 messages
     const trimmed = messages.slice(-50);
@@ -106,9 +106,9 @@ export class Coach extends Agent<Env, CoachState> {
       {
         messages: [
           { role: "system", content: systemPrompt },
-          { role: "user", content: userMessage },
+          { role: "user", content: userMessage }
         ],
-        max_tokens: 2048,
+        max_tokens: 2048
       }
     );
 
@@ -124,9 +124,11 @@ export class Coach extends Agent<Env, CoachState> {
       return result;
     }
 
-    return (response as { response?: string }).response || "No response generated.";
+    return (
+      (response as { response?: string }).response || "No response generated."
+    );
   }
-  
+
   /**
    * SM-2 Spaced Repetition Algorithm
    *
@@ -230,15 +232,14 @@ ${code}
 
       // Parse score from response
       const scoreMatch = feedback.match(/Score:\s*(\d+)\s*\/\s*10/i);
-      const score = scoreMatch ? parseInt(scoreMatch[1]) : 5;
+      const score = scoreMatch ? parseInt(scoreMatch[1], 10) : 5;
       const needsReview = score < 7;
       // Check if this problem was previously solved (re-review)
       const existingIndex = this.state.solvedProblems.findIndex(
         (p) => p.id === problemId
       );
-      const existing = existingIndex !== -1
-        ? this.state.solvedProblems[existingIndex]
-        : null;
+      const existing =
+        existingIndex !== -1 ? this.state.solvedProblems[existingIndex] : null;
 
       const { easinessFactor: newEF, interval: newInterval } =
         this.calculateNextReview(
@@ -258,7 +259,7 @@ ${code}
         easinessFactor: newEF,
         interval: newInterval,
         reviewCount: (existing?.reviewCount ?? 0) + 1,
-        nextReview: Date.now() + newInterval * 86_400_000,
+        nextReview: Date.now() + newInterval * 86_400_000
       };
 
       // Replace existing entry or append new one
@@ -277,9 +278,7 @@ ${code}
       } else if (score >= 8) {
         // Remove from weak topics if consistently good
         const topicProblems = solvedProblems.filter((p) => p.topic === topic);
-        const recentGood = topicProblems
-          .slice(-3)
-          .every((p) => !p.needsReview);
+        const recentGood = topicProblems.slice(-3).every((p) => !p.needsReview);
         if (recentGood) {
           weakTopics = weakTopics.filter((t) => t !== topic);
         }
@@ -298,7 +297,7 @@ ${code}
   }
 
   @callable({
-    description: "Get next problem recommendation based on study history",
+    description: "Get next problem recommendation based on study history"
   })
   async getNextRecommendation(): Promise<string> {
     this.addChatMessage("user", "Requesting next problem recommendation");
@@ -384,10 +383,7 @@ ${dueSummary}`;
     topic: string,
     depth: "beginner" | "intermediate" | "advanced"
   ): Promise<string> {
-    this.addChatMessage(
-      "user",
-      `Explain ${topic} at ${depth} level`
-    );
+    this.addChatMessage("user", `Explain ${topic} at ${depth} level`);
 
     // Adjust context based on user's history with this topic
     const topicProblems = this.state.solvedProblems.filter(
@@ -452,7 +448,10 @@ Depth: ${depth}`;
 
   @callable({ description: "Analyze weaknesses and generate a study plan" })
   async analyzeWeaknesses(): Promise<string> {
-    this.addChatMessage("user", "Analyze my weaknesses and create a study plan");
+    this.addChatMessage(
+      "user",
+      "Analyze my weaknesses and create a study plan"
+    );
 
     if (this.state.solvedProblems.length === 0) {
       const msg =
@@ -472,7 +471,7 @@ Depth: ${depth}`;
         topicStats[problem.topic] = {
           total: 0,
           needsReview: 0,
-          difficulties: [],
+          difficulties: []
         };
       }
       topicStats[problem.topic].total++;
@@ -541,7 +540,10 @@ ${statsStr}`;
   async updateTargetCompanies(companies: string[]): Promise<string> {
     this.setState({ ...this.state, targetCompanies: companies });
     const msg = `Target companies updated to: ${companies.join(", ")}. I'll tailor problem recommendations to match their interview patterns.`;
-    this.addChatMessage("user", `Set target companies: ${companies.join(", ")}`);
+    this.addChatMessage(
+      "user",
+      `Set target companies: ${companies.join(", ")}`
+    );
     this.addChatMessage("assistant", msg);
     return msg;
   }
@@ -573,10 +575,13 @@ Student profile:
 - Target companies: ${this.state.targetCompanies.join(", ") || "General"}`;
 
     try {
-      const response = await this.callLlama(systemPrompt, `Recent conversation:\n${recentMessages}\n\nCurrent message: ${message}`);
+      const response = await this.callLlama(
+        systemPrompt,
+        `Recent conversation:\n${recentMessages}\n\nCurrent message: ${message}`
+      );
       this.addChatMessage("assistant", response);
       return response;
-    } catch (error) {
+    } catch (_error) {
       const errorMsg = `Sorry, I encountered an error. Please try again.`;
       this.addChatMessage("assistant", errorMsg);
       return errorMsg;
@@ -590,5 +595,5 @@ export default {
       (await routeAgentRequest(request, env)) ||
       new Response("Not found", { status: 404 })
     );
-  },
+  }
 } satisfies ExportedHandler<Env>;

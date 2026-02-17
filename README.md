@@ -53,15 +53,15 @@ An AI-powered algorithm study coach built with Cloudflare Agents and Workers AI 
 
 ## Tech Stack
 
-| Layer | Technology |
-|-------|-----------|
-| Runtime | Cloudflare Workers |
-| Agent Framework | Cloudflare Agents (Durable Objects) |
-| LLM | Llama 3.3 70B via Workers AI |
-| Frontend | React 19, TypeScript, Tailwind CSS v4 |
-| Build | Vite + @cloudflare/vite-plugin |
-| State | SQLite (Durable Objects storage) |
-| Communication | WebSocket via `useAgent` hook |
+| Layer           | Technology                            |
+| --------------- | ------------------------------------- |
+| Runtime         | Cloudflare Workers                    |
+| Agent Framework | Cloudflare Agents (Durable Objects)   |
+| LLM             | Llama 3.3 70B via Workers AI          |
+| Frontend        | React 19, TypeScript, Tailwind CSS v4 |
+| Build           | Vite + @cloudflare/vite-plugin        |
+| State           | SQLite (Durable Objects storage)      |
+| Communication   | WebSocket via `useAgent` hook         |
 
 ## Getting Started
 
@@ -143,12 +143,12 @@ All LLM calls go through `this.env.AI.run()` using the Workers AI binding. The m
 
 ## Assignment Requirements
 
-| Requirement | Implementation |
-|---|---|
-| LLM Integration | Llama 3.3 70B via Workers AI |
-| Workflow/Coordination | Cloudflare Agents (Durable Objects) with `@callable()` methods |
-| Chat UI | React chat interface with real-time WebSocket updates via `useAgent()` |
-| State Management | Persistent `CoachState` in SQLite, synced to frontend in real-time |
+| Requirement           | Implementation                                                         |
+| --------------------- | ---------------------------------------------------------------------- |
+| LLM Integration       | Llama 3.3 70B via Workers AI                                           |
+| Workflow/Coordination | Cloudflare Agents (Durable Objects) with `@callable()` methods         |
+| Chat UI               | React chat interface with real-time WebSocket updates via `useAgent()` |
+| State Management      | Persistent `CoachState` in SQLite, synced to frontend in real-time     |
 
 ## License
 
